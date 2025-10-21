@@ -72,7 +72,7 @@ export default function Home() {
   useEffect(()=>{ if(!supabase) return; const { data } = supabase.auth.onAuthStateChange((_event, session)=>{ setSessionEmail(session?.user?.email||null) }); return ()=>{ data.subscription.unsubscribe() } },[])
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px' }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '16px 12px' }}>
       <header style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 16 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <div style={{ padding:8, borderRadius:16, background:'#4f46e5', color:'#fff' }}><Sparkles size={18}/></div>

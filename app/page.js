@@ -225,3 +225,19 @@ function Range({ label, value, onChange, min=0, max=100, step=1, suffix='' }){
     </label>
   )
 }
+function Score({ label, value, Icon }) {
+  const bg = value >= 70 ? '#dcfce7' : value >= 40 ? '#fef9c3' : '#fee2e2';
+  const fg = value >= 70 ? '#166534' : value >= 40 ? '#854d0e' : '#991b1b';
+  return (
+    <div style={{
+      display:'flex', alignItems:'center', justifyContent:'space-between',
+      gap:8, padding:12, borderRadius:12, background:bg, color:fg
+    }}>
+      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+        {Icon && <Icon size={16} />}
+        <span style={{ fontWeight:600 }}>{label}</span>
+      </div>
+      <strong style={{ fontVariantNumeric:'tabular-nums' }}>{value}</strong>
+    </div>
+  );
+}

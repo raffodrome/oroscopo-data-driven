@@ -19,6 +19,21 @@ const weatherOptions = [
 ]
 const clamp = (n, min=0, max=100) => Math.max(min, Math.min(max, Math.round(n)))
 
+// ——— Meteo: mapping Open‑Meteo → nostre categorie ———
+function mapOpenMeteoToCategory({ weathercode, temperature_2m, windspeed_10m }){
+  // temperature override
+  if (typeof temperature_2m === 'number') {
+    if (temperature_2m >= 30) return 'hot'
+    if (temperature_2m <= 5) return 'cold'
+  }
+  // codes: https://open-meteo.com/en/docs#weathervariables
+  if ([0].includes(weathercode)) return 'sunny'
+  if ([1,2,3,45,48].includes(weathercode)) return 'cloudy'
+  if ([51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99,71,73,75,77].includes(weathercode)) return 'rain'
+  if (typeof windspeed_10m === 'number' && windspeed_10m >= 40) return 'wind'
+  return 'cloudy'
+}
+
 export default function Home() {
   const [profile, setProfile] = useState(() => {
     try { const raw = localStorage.getItem(LS_KEY); return raw ? { ...initialProfile, ...JSON.parse(raw) } : initialProfile } catch { return initialProfile }
@@ -31,6 +46,31 @@ export default function Home() {
   const [weather, setWeather] = useState('sunny')
   const [userEmail, setUserEmail] = useState('')
   const [sessionEmail, setSessionEmail] = useState(null)
+
+  // Responsive: 1 elemento per riga su mobile, 2 su schermo grande
+  const [cols, setCols] = useState(1)
+  useEffect(()=>{
+    const onResize = () => setCols(window.innerWidth < 720 ? 1 : 2)
+    onResize(); window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  // Meteo reale con geolocalizzazione (permesso dell'utente)
+  const [geoStatus, setGeoStatus] = useState('idle') // idle | loading | ok | err
+  async function getWeatherFromBrowser(){
+    try{
+      setGeoStatus('loading')
+      const pos = await new Promise((res, rej)=> navigator.geolocation ? navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy:false, timeout:8000 }) : rej(new Error('no geo')))
+      const { latitude, longitude } = pos.coords
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m`;
+      const r = await fetch(url)
+      const data = await r.json()
+      const cur = data.current || {}
+      const cat = mapOpenMeteoToCategory({ weathercode: cur.weather_code, temperature_2m: cur.temperature_2m, windspeed_10m: cur.wind_speed_10m })
+      setWeather(cat)
+      setGeoStatus('ok')
+    }catch(e){ setGeoStatus('err') }
+  }
 
   useEffect(()=>{ const id=setTimeout(()=>localStorage.setItem(LS_KEY, JSON.stringify(profile)),250); return ()=>clearTimeout(id) }, [profile])
 
@@ -54,11 +94,11 @@ export default function Home() {
     const arr=[]
     if(scores.social>=60 && timeBudget>=60){
       if(weather==='rain' && profile.indoor_on_rain){ arr.push({ title:'Serata sociale indoor', reason:'Socialità alta + pioggia', action:`Cinema o aperitivo in ${profile.city||'zona'} (budget €${moneyBudget}).`, Icon:Heart }) }
-      else { arr.push({ title:'Invito last-minute', reason:'Hai tempo e voglia', action:'Scrivi a 2 amici per un caffè o passeggiata al tramonto.', Icon:Heart }) }
+      else { arr.push({ title:'Invito last‑minute', reason:'Hai tempo e voglia', action:'Scrivi a 2 amici per un caffè o passeggiata al tramonto.', Icon:Heart }) }
     }
     if(scores.energy>=55){ arr.push({ title:"30' movimento leggero", reason:'Energia buona', action: weather==='sunny'?'Camminata all’aperto':'Stretching a casa', Icon:Activity }) }
-    else { arr.push({ title:'Recovery intelligente', reason:'Energia bassa', action:"Idratazione + 10' respirazione 4-7-8 + a letto 30' prima.", Icon:Moon }) }
-    arr.push({ title:"Blocco focus 45'", reason: windows[0]?.label||'', action:'Modalità aereo + to-do 3 elementi.', Icon:Calendar })
+    else { arr.push({ title:'Recovery intelligente', reason:'Energia bassa', action:"Idratazione + 10' respirazione 4‑7‑8 + a letto 30' prima.", Icon:Moon }) }
+    arr.push({ title:"Blocco focus 45'", reason: windows[0]?.label||'', action:'Modalità aereo + to‑do 3 elementi.', Icon:Calendar })
     return arr.slice(0,3)
   }, [scores,timeBudget,weather,profile,windows,moneyBudget])
 
@@ -76,7 +116,7 @@ export default function Home() {
       <header style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 16 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <div style={{ padding:8, borderRadius:16, background:'#4f46e5', color:'#fff' }}><Sparkles size={18}/></div>
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Oroscopo Data-Driven</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Oroscopo Data‑Driven</h1>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           {sessionEmail ? <span style={{ fontSize:12 }}>Connesso: {sessionEmail}</span> : (
@@ -90,21 +130,28 @@ export default function Home() {
       </header>
 
       <main style={{ display:'grid', gridTemplateColumns:'1fr', gap:16 }}>
-        <Card title="Check-in di oggi" Icon={Calendar} subtitle="Aggiorna in 10 secondi">
+        <Card title="Check‑in di oggi" Icon={Calendar} subtitle="Aggiorna in 10 secondi">
           <div style={{ display:'grid', gap:12 }}>
             <Range label="Ore dormite" min={3} max={10} step={0.5} value={sleepHours} onChange={setSleepHours} suffix="h"/>
             <Range label="Umore ora" min={1} max={5} value={mood} onChange={setMood} />
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            {/* 1 elemento per riga su mobile; 2 su desktop */}
+            <div style={{ display:'grid', gridTemplateColumns: cols===1?'1fr':'1fr 1fr', gap:12 }}>
               <NumberField label="Tempo libero (min)" value={timeBudget} onChange={setTimeBudget} />
               <NumberField label="Budget (€)" value={moneyBudget} onChange={setMoneyBudget} />
             </div>
             <div>
-              <div style={{ fontSize:12, color:'#64748b', marginBottom:4 }}>Meteo (simulato)</div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+              <div style={{ fontSize:12, color:'#64748b', marginBottom:8, display:'flex', alignItems:'center', gap:8 }}>
+                <span>Meteo</span>
+                <button onClick={getWeatherFromBrowser} style={{ padding:'6px 10px', borderRadius:10, border:'1px solid #d1d5db', background:'#fff' }}>
+                  {geoStatus==='loading' ? 'Rilevo…' : 'Rileva meteo attuale'}
+                </button>
+                <span style={{ fontSize:11, color:'#94a3b8' }}>(usa la tua posizione, chiede il permesso)</span>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns: cols===1?'1fr':'1fr 1fr 1fr', gap:8 }}>
                 {weatherOptions.map(w=>{
                   const Icon = w.icon; const active = weather===w.id
                   return (
-                    <button key={w.id} onClick={()=>setWeather(w.id)} style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'8px', borderRadius:12, border:'1px solid', borderColor: active?'#4f46e5':'#e5e7eb', background: active?'#eef2ff':'#fff' }}>
+                    <button key={w.id} onClick={()=>setWeather(w.id)} style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px', borderRadius:12, border:'1px solid', borderColor: active?'#4f46e5':'#e5e7eb', background: active?'#eef2ff':'#fff' }}>
                       <Icon size={16}/><span style={{ fontSize:12 }}>{w.label}</span>
                     </button>
                   )
@@ -114,14 +161,14 @@ export default function Home() {
           </div>
         </Card>
 
-        <Card title="Il tuo oroscopo di oggi (data-driven)" Icon={Sparkles} subtitle="0–100, più alto è meglio.">
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+        <Card title="Il tuo oroscopo di oggi (data‑driven)" Icon={Sparkles} subtitle="0–100, più alto è meglio.">
+          <div style={{ display:'grid', gridTemplateColumns: cols===1?'1fr':'1fr 1fr', gap:8 }}>
             <Score label="Energia" value={scores.energy} Icon={Zap} />
             <Score label="Umore" value={scores.mood} Icon={Sun} />
             <Score label="Socialità" value={scores.social} Icon={Heart} />
             <Score label="Stress" value={scores.stress} Icon={Activity} />
           </div>
-          <div style={{ fontSize:12, color:'#64748b', marginTop:8 }}>*MVP: meteo/eventi simulati manualmente. Dopo useremo API.</div>
+          <div style={{ fontSize:12, color:'#64748b', marginTop:8 }}>*Meteo reale disponibile con pulsante “Rileva meteo attuale”.</div>
         </Card>
 
         <Card title="Consigli personalizzati" Icon={Star} subtitle="Tre azioni concrete">
@@ -154,17 +201,17 @@ export default function Home() {
 
         <Card title="Profilo rapido" Icon={User} subtitle="Dati minimi">
           <div style={{ display:'grid', gap:10 }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div style={{ display:'grid', gridTemplateColumns: cols===1?'1fr':'1fr 1fr', gap:10 }}>
               <TextField label="Nome" value={profile.name} onChange={v=>setProfile(p=>({...p,name:v}))}/>
               <TextField label="Età" type="number" value={profile.age} onChange={v=>setProfile(p=>({...p,age:v}))}/>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+            <div style={{ display:'grid', gridTemplateColumns: cols===1?'1fr':'1fr 1fr 1fr', gap:10 }}>
               <TextField label="Città" value={profile.city} onChange={v=>setProfile(p=>({...p,city:v}))}/>
               <TextField label="CAP" value={profile.cap} onChange={v=>setProfile(p=>({...p,cap:v}))}/>
               <Select label="Relazione" value={profile.relationship} onChange={v=>setProfile(p=>({...p,relationship:v}))} options={[['single','Single'],['couple','In coppia'],['genitore','Genitore']]}/>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-              <Select label="Lavoro" value={profile.work_status} onChange={v=>setProfile(p=>({...p,work_status:v}))} options={[["full_time","Full-time"],["part_time","Part-time"],["studente","Studente"],["turni","Turni"],["disoccupato","Non occupato"]]}/>
+            <div style={{ display:'grid', gridTemplateColumns: cols===1?'1fr':'1fr 1fr', gap:10 }}>
+              <Select label="Lavoro" value={profile.work_status} onChange={v=>setProfile(p=>({...p,work_status:v}))} options={[["full_time","Full‑time"],["part_time","Part‑time"],["studente","Studente"],["turni","Turni"],["disoccupato","Non occupato"]]}/>
               <Select label="Cronotipo" value={profile.chronotype} onChange={v=>setProfile(p=>({...p,chronotype:v}))} options={[["neutral","Neutro"],["morning","Mattiniero"],["evening","Serale"]]}/>
             </div>
           </div>
@@ -225,6 +272,7 @@ function Range({ label, value, onChange, min=0, max=100, step=1, suffix='' }){
     </label>
   )
 }
+
 function Score({ label, value, Icon }) {
   const bg = value >= 70 ? '#dcfce7' : value >= 40 ? '#fef9c3' : '#fee2e2';
   const fg = value >= 70 ? '#166534' : value >= 40 ? '#854d0e' : '#991b1b';

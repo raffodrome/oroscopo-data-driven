@@ -118,7 +118,8 @@ export default function Home() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '16px 12px' }}>
-      <header style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 16 }}>
+      <header style={{ display:'flex', flexDirection: cols===1 ? 'column' : 'row', alignItems: cols===1 ? 'flex-start' : 'center', justifyContent: cols===1 ? 'flex-start' : 'space-between', gap: cols===1 ? 8 : 0, marginBottom: 16 }}>
+
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <div style={{ padding:8, borderRadius:16, background:'#4f46e5', color:'#fff' }}><Sparkles size={18}/></div>
           <h1 style={{ fontSize: 22, fontWeight: 700 }}>Oroscopo Data-Driven</h1>

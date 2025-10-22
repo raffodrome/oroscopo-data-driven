@@ -1,14 +1,22 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { Calendar, CloudRain, Heart, MapPin, Moon, Sun, Sparkles, Star, User, Zap, Activity, Clock, CloudSun, Wind, Snowflake } from 'lucide-react'
+import { Calendar, CloudRain, Heart, Moon, Sun, Sparkles, Star, User, Zap, Activity, Clock, CloudSun, Wind, Snowflake } from 'lucide-react'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
 
 const LS_KEY = 'ddh_profile_v1'
-const initialProfile = { name:'', age:'', city:'', cap:'', relationship:'single', work_status:'full_time', interests:['passeggiate','aperitivi','cinema'], chronotype:'neutral', sleep:{bedtime:'23:30', waketime:'07:30'}, budget_per_outing:15, mobility:['piedi'], risk_novelty:'medio', indoor_on_rain:true }
+const initialProfile = {
+  name:'', age:'', city:'', cap:'',
+  relationship:'single', work_status:'full_time',
+  interests:['passeggiate','aperitivi','cinema'],
+  chronotype:'neutral',
+  sleep:{bedtime:'23:30', waketime:'07:30'},
+  budget_per_outing:15, mobility:['piedi'],
+  risk_novelty:'medio', indoor_on_rain:true
+}
 const weatherOptions = [
   { id:'sunny', label:'Sole', icon: Sun },
   { id:'cloudy', label:'Variabile', icon: CloudSun },
@@ -19,14 +27,12 @@ const weatherOptions = [
 ]
 const clamp = (n, min=0, max=100) => Math.max(min, Math.min(max, Math.round(n)))
 
-// ——— Meteo: mapping Open‑Meteo → nostre categorie ———
+// ——— Meteo: mapping Open-Meteo → nostre categorie ———
 function mapOpenMeteoToCategory({ weathercode, temperature_2m, windspeed_10m }){
-  // temperature override
   if (typeof temperature_2m === 'number') {
     if (temperature_2m >= 30) return 'hot'
     if (temperature_2m <= 5) return 'cold'
   }
-  // codes: https://open-meteo.com/en/docs#weathervariables
   if ([0].includes(weathercode)) return 'sunny'
   if ([1,2,3,45,48].includes(weathercode)) return 'cloudy'
   if ([51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99,71,73,75,77].includes(weathercode)) return 'rain'
@@ -38,7 +44,6 @@ export default function Home() {
   const [profile, setProfile] = useState(() => {
     try { const raw = localStorage.getItem(LS_KEY); return raw ? { ...initialProfile, ...JSON.parse(raw) } : initialProfile } catch { return initialProfile }
   })
-  const [editing, setEditing] = useState(!globalThis?.localStorage?.getItem(LS_KEY))
   const [sleepHours, setSleepHours] = useState(7)
   const [mood, setMood] = useState(3)
   const [timeBudget, setTimeBudget] = useState(90)
@@ -62,7 +67,7 @@ export default function Home() {
       setGeoStatus('loading')
       const pos = await new Promise((res, rej)=> navigator.geolocation ? navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy:false, timeout:8000 }) : rej(new Error('no geo')))
       const { latitude, longitude } = pos.coords
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m`
       const r = await fetch(url)
       const data = await r.json()
       const cur = data.current || {}
@@ -94,11 +99,11 @@ export default function Home() {
     const arr=[]
     if(scores.social>=60 && timeBudget>=60){
       if(weather==='rain' && profile.indoor_on_rain){ arr.push({ title:'Serata sociale indoor', reason:'Socialità alta + pioggia', action:`Cinema o aperitivo in ${profile.city||'zona'} (budget €${moneyBudget}).`, Icon:Heart }) }
-      else { arr.push({ title:'Invito last‑minute', reason:'Hai tempo e voglia', action:'Scrivi a 2 amici per un caffè o passeggiata al tramonto.', Icon:Heart }) }
+      else { arr.push({ title:'Invito last-minute', reason:'Hai tempo e voglia', action:'Scrivi a 2 amici per un caffè o passeggiata al tramonto.', Icon:Heart }) }
     }
     if(scores.energy>=55){ arr.push({ title:"30' movimento leggero", reason:'Energia buona', action: weather==='sunny'?'Camminata all’aperto':'Stretching a casa', Icon:Activity }) }
-    else { arr.push({ title:'Recovery intelligente', reason:'Energia bassa', action:"Idratazione + 10' respirazione 4‑7‑8 + a letto 30' prima.", Icon:Moon }) }
-    arr.push({ title:"Blocco focus 45'", reason: windows[0]?.label||'', action:'Modalità aereo + to‑do 3 elementi.', Icon:Calendar })
+    else { arr.push({ title:'Recovery intelligente', reason:'Energia bassa', action:"Idratazione + 10' respirazione 4-7-8 + a letto 30' prima.", Icon:Moon }) }
+    arr.push({ title:"Blocco focus 45'", reason: windows[0]?.label||'', action:'Modalità aereo + to-do 3 elementi.', Icon:Calendar })
     return arr.slice(0,3)
   }, [scores,timeBudget,weather,profile,windows,moneyBudget])
 
@@ -116,7 +121,7 @@ export default function Home() {
       <header style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 16 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <div style={{ padding:8, borderRadius:16, background:'#4f46e5', color:'#fff' }}><Sparkles size={18}/></div>
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Oroscopo Data‑Driven</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Oroscopo Data-Driven</h1>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           {sessionEmail ? <span style={{ fontSize:12 }}>Connesso: {sessionEmail}</span> : (
@@ -125,12 +130,12 @@ export default function Home() {
               <button onClick={signInWithEmail} style={{ padding:'8px 12px', borderRadius:12, background:'#4f46e5', color:'#fff' }}>Accedi</button>
             </div>
           )}
-          <button onClick={()=>setEditing(true)} style={{ padding:'8px 12px', borderRadius:12, border:'1px solid #d1d5db', background:'#fff' }}>Profilo</button>
+          <button onClick={()=>alert('Profilo rapido: compila i campi qui sotto')} style={{ padding:'8px 12px', borderRadius:12, border:'1px solid #d1d5db', background:'#fff' }}>Profilo</button>
         </div>
       </header>
 
       <main style={{ display:'grid', gridTemplateColumns:'1fr', gap:16 }}>
-        <Card title="Check‑in di oggi" Icon={Calendar} subtitle="Aggiorna in 10 secondi">
+        <Card title="Check-in di oggi" Icon={Calendar} subtitle="Aggiorna in 10 secondi">
           <div style={{ display:'grid', gap:12 }}>
             <Range label="Ore dormite" min={3} max={10} step={0.5} value={sleepHours} onChange={setSleepHours} suffix="h"/>
             <Range label="Umore ora" min={1} max={5} value={mood} onChange={setMood} />
@@ -161,7 +166,7 @@ export default function Home() {
           </div>
         </Card>
 
-        <Card title="Il tuo oroscopo di oggi (data‑driven)" Icon={Sparkles} subtitle="0–100, più alto è meglio.">
+        <Card title="Il tuo oroscopo di oggi (data-driven)" Icon={Sparkles} subtitle="0–100, più alto è meglio.">
           <div style={{ display:'grid', gridTemplateColumns: cols===1?'1fr':'1fr 1fr', gap:8 }}>
             <Score label="Energia" value={scores.energy} Icon={Zap} />
             <Score label="Umore" value={scores.mood} Icon={Sun} />
@@ -211,7 +216,7 @@ export default function Home() {
               <Select label="Relazione" value={profile.relationship} onChange={v=>setProfile(p=>({...p,relationship:v}))} options={[['single','Single'],['couple','In coppia'],['genitore','Genitore']]}/>
             </div>
             <div style={{ display:'grid', gridTemplateColumns: cols===1?'1fr':'1fr 1fr', gap:10 }}>
-              <Select label="Lavoro" value={profile.work_status} onChange={v=>setProfile(p=>({...p,work_status:v}))} options={[["full_time","Full‑time"],["part_time","Part‑time"],["studente","Studente"],["turni","Turni"],["disoccupato","Non occupato"]]}/>
+              <Select label="Lavoro" value={profile.work_status} onChange={v=>setProfile(p=>({...p,work_status:v}))} options={[["full_time","Full-time"],["part_time","Part-time"],["studente","Studente"],["turni","Turni"],["disoccupato","Non occupato"]]}/>
               <Select label="Cronotipo" value={profile.chronotype} onChange={v=>setProfile(p=>({...p,chronotype:v}))} options={[["neutral","Neutro"],["morning","Mattiniero"],["evening","Serale"]]}/>
             </div>
           </div>

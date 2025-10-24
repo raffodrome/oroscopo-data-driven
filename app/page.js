@@ -27,16 +27,31 @@ const weatherOptions = [
 ]
 const clamp = (n, min=0, max=100) => Math.max(min, Math.min(max, Math.round(n)))
 
-// ——— Meteo: mapping Open-Meteo → nostre categorie ———
-function mapOpenMeteoToCategory({ weathercode, temperature_2m, windspeed_10m }){
-  if (typeof temperature_2m === 'number') {
-    if (temperature_2m >= 30) return 'hot'
-    if (temperature_2m <= 5) return 'cold'
+// ——— Meteo: mapping Open-Meteo → nostre categorie (FIX) ———
+function mapOpenMeteoToCategory(cur){
+  const t = cur.temperature_2m
+  const wmo = cur.weather_code
+  const wind = cur.wind_speed_10m
+  const precip = (cur.precipitation ?? 0) + (cur.rain ?? 0) + (cur.showers ?? 0) + (cur.snowfall ?? 0)
+
+  // Precipitazioni prevalgono
+  if (precip > 0 || [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99,71,73,75,77].includes(wmo)) {
+    return 'rain'
   }
-  if ([0].includes(weathercode)) return 'sunny'
-  if ([1,2,3,45,48].includes(weathercode)) return 'cloudy'
-  if ([51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99,71,73,75,77].includes(weathercode)) return 'rain'
-  if (typeof windspeed_10m === 'number' && windspeed_10m >= 40) return 'wind'
+
+  // Temperature
+  if (typeof t === 'number') {
+    if (t >= 30) return 'hot'
+    if (t <= 5)  return 'cold'
+  }
+
+  // Sereno / poco nuvoloso
+  if ([0,1].includes(wmo)) return 'sunny'          // 0 sereno, 1 poco nuvoloso
+  if ([2,3,45,48].includes(wmo)) return 'cloudy'   // 2 parz. nuvoloso, 3 coperto, 45/48 nebbia
+
+  // Vento forte (≈ 12 m/s ~ 43 km/h)
+  if (typeof wind === 'number' && wind >= 12) return 'wind'
+
   return 'cloudy'
 }
 
@@ -78,15 +93,11 @@ export default function Home() {
           : rej(new Error('no geo'))
       )
       const { latitude, longitude } = pos.coords
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m`
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m,precipitation,rain,showers,snowfall`
       const r = await fetch(url)
       const data = await r.json()
       const cur = data.current || {}
-      const cat = mapOpenMeteoToCategory({
-        weathercode: cur.weather_code,
-        temperature_2m: cur.temperature_2m,
-        windspeed_10m: cur.wind_speed_10m
-      })
+      const cat = mapOpenMeteoToCategory(cur)
       setWeather(cat)
       setGeoStatus('ok')
     }catch(e){
